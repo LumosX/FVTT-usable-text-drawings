@@ -1,0 +1,25 @@
+{
+    "id": "usable-text-drawings",
+    "title": "Usable Text Drawings",
+    "description": "Click anywhere with the text tool and type. Multiline text, a formatting bar, left and top aligned, and no bordered box.",
+    "version": "0.1.0",
+    "authors": [
+        {
+            "name": "Lumos @ Zero Vector",
+            "url": "https://github.com/LumosX"
+        }
+    ],
+    "esmodules": ["scripts/main.mjs"],
+    "styles": ["styles/usable-text-drawings.css"],
+    "languages": [
+        {
+            "lang": "en",
+            "name": "English",
+            "path": "lang/en.json"
+        }
+    ],
+    "compatibility": {
+        "minimum": "13",
+        "verified": "14"
+    }
+}

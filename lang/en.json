@@ -1,0 +1,14 @@
+{
+    "USABLE_TEXT_DRAWINGS": {
+        "FontFamily": "Font",
+        "DefaultFont": "Default ({font})",
+        "FontSize": "Font size",
+        "TextColour": "Text colour",
+        "Align": {
+            "left": "Align left",
+            "center": "Align centre",
+            "right": "Align right"
+        },
+        "Configure": "All drawing options"
+    }
+}

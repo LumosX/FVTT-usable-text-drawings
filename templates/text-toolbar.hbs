@@ -1,0 +1,17 @@
+<div class="controls" data-tooltip-direction="DOWN">
+    <select class="ui-control" name="fontFamily" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FontFamily"}}">
+        {{selectOptions fontFamilies selected=style.fontFamily blank=defaultFontLabel}}
+    </select>
+
+    <input class="ui-control" type="number" name="fontSize" value="{{style.fontSize}}" min="{{fontSizeRange.min}}" max="{{fontSizeRange.max}}" step="1" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FontSize"}}">
+
+    <input class="ui-control" type="color" name="textColor" value="{{style.textColor}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.TextColour"}}">
+
+    <div class="split-button">
+        {{#each alignments}}
+        <button type="button" class="ui-control icon fa-solid fa-align-{{align}}" data-action="align" data-align="{{align}}" aria-pressed="{{isPressed}}" data-tooltip aria-label="{{localize (concat "USABLE_TEXT_DRAWINGS.Align." align)}}"></button>
+        {{/each}}
+    </div>
+
+    <button type="button" class="ui-control icon fa-solid fa-gear" data-action="configure" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.Configure"}}" {{disabled (not isEditing)}}></button>
+</div>

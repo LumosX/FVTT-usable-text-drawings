@@ -1,0 +1,41 @@
+#hud > .usable-text-drawings-editor {
+    all: unset;
+    position: absolute;
+    box-sizing: border-box;
+    overflow: hidden;
+    pointer-events: all;
+    cursor: text;
+    paint-order: stroke fill;
+    outline: 2px dashed rgb(255 255 255 / 60%);
+    outline-offset: 4px;
+}
+
+#usable-text-drawings-toolbar .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+#usable-text-drawings-toolbar :is(select, input).ui-control {
+    flex: none;
+    height: var(--control-size);
+    padding: 0 8px;
+    background: var(--control-bg-color);
+    border: 1px solid var(--control-border-color);
+    border-radius: 4px;
+    color: var(--control-icon-color);
+    pointer-events: all;
+}
+
+#usable-text-drawings-toolbar select {
+    width: 180px;
+}
+
+#usable-text-drawings-toolbar input[type="number"] {
+    width: 64px;
+}
+
+#usable-text-drawings-toolbar input[type="color"] {
+    width: var(--control-size);
+    padding: 4px;
+}
