@@ -3,6 +3,7 @@ import UsableTextDrawingMixin from "./drawing.mjs";
 import UsableTextDrawingsLayerMixin from "./drawings-layer.mjs";
 import TextEditor, { EDITING_CHANGED_HOOK } from "./text-editor.mjs";
 import TextToolbar from "./text-toolbar.mjs";
+import { makeTextFieldMultiline } from "./drawing-config.mjs";
 
 Hooks.once("init", () => {
     registerStyleSetting();
@@ -23,3 +24,4 @@ for (const hook of ["activateSceneControls", "canvasTearDown"])
     Hooks.on(hook, () => TextEditor.active?.commit());
 
 Hooks.on("preUpdateDrawing", refitOnUpdate);
+Hooks.on("renderDrawingConfig", makeTextFieldMultiline);

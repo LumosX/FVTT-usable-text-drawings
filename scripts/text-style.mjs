@@ -110,12 +110,16 @@ export function fitToText(drawingData, previousInset) {
 
 // Keeps a fitted box fitted whoever changes the drawing: the text editor, the config sheet or a macro.
 export function refitOnUpdate(document, changes) {
-    const affectsFit = REFIT_TRIGGERS.some(key => foundry.utils.hasProperty(changes, key));
+    // The changes may not be narrowed down to actual differences yet. The config sheet submits its every field, the size of the box among them.
+    const source = document.toObject();
+    const differences = foundry.utils.diffObject(source, changes);
+    const affectsFit = REFIT_TRIGGERS.some(key => foundry.utils.hasProperty(differences, key));
 
-    if (!affectsFit || "shape" in changes)
+    // A box given another size on purpose, by its handles or in its config sheet, keeps it until its text next changes.
+    if (!affectsFit || "shape" in differences)
         return;
 
-    const updated = foundry.utils.mergeObject(document.toObject(), changes, { inplace: false });
+    const updated = foundry.utils.mergeObject(source, changes);
 
     if (getLayout(updated).fit)
         foundry.utils.mergeObject(changes, fitToText(updated, getTextInset(document)));

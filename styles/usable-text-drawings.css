@@ -14,6 +14,10 @@
     paint-order: stroke fill;
 }
 
+.drawing-config textarea[name="text"] {
+    font-family: inherit;
+}
+
 #usable-text-drawings-toolbar.editing {
     opacity: 1;
 }
