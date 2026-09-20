@@ -1,17 +1,34 @@
+{{#*inline "toggle"}}
+<button type="button" class="ui-control icon fa-solid {{icon}}" data-action="toggle" data-key="{{key}}" aria-pressed="{{isPressed}}" data-tooltip aria-label="{{localize (concat "USABLE_TEXT_DRAWINGS." key)}}" {{disabled isDisabled}}></button>
+{{/inline}}
+
+{{#*inline "choices"}}
+<div class="split-button">
+    {{#each options}}
+    <button type="button" class="ui-control icon fa-solid {{icon}}" data-action="choose" data-key="{{key}}" data-value="{{value}}" aria-pressed="{{isPressed}}" data-tooltip aria-label="{{localize (concat "USABLE_TEXT_DRAWINGS." key "." value)}}"></button>
+    {{/each}}
+</div>
+{{/inline}}
+
 <div class="controls" data-tooltip-direction="DOWN">
     <select class="ui-control" name="fontFamily" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FontFamily"}}">
         {{selectOptions fontFamilies selected=style.fontFamily blank=defaultFontLabel}}
     </select>
-
     <input class="ui-control" type="number" name="fontSize" value="{{style.fontSize}}" min="{{fontSizeRange.min}}" max="{{fontSizeRange.max}}" step="1" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FontSize"}}">
-
     <input class="ui-control" type="color" name="textColor" value="{{style.textColor}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.TextColour"}}">
 
     <div class="split-button">
-        {{#each alignments}}
-        <button type="button" class="ui-control icon fa-solid fa-align-{{align}}" data-action="align" data-align="{{align}}" aria-pressed="{{isPressed}}" data-tooltip aria-label="{{localize (concat "USABLE_TEXT_DRAWINGS.Align." align)}}"></button>
-        {{/each}}
+        {{> toggle key="bold" icon="fa-bold" isPressed=style.bold}}
+        {{> toggle key="italic" icon="fa-italic" isPressed=style.italic}}
     </div>
+
+    {{> choices options=alignments}}
+    {{> choices options=verticalAlignments}}
+    {{> toggle key="fit" icon="fa-text-width" isPressed=style.fit isDisabled=(not canFit)}}
+
+    {{> toggle key="fill" icon="fa-fill-drip" isPressed=style.fill}}
+    <input class="ui-control" type="color" name="fillColor" value="{{style.fillColor}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FillColour"}}">
+    {{> toggle key="border" icon="fa-border-outer" isPressed=style.border}}
 
     <button type="button" class="ui-control icon fa-solid fa-gear" data-action="configure" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.Configure"}}" {{disabled (not isEditing)}}></button>
 </div>

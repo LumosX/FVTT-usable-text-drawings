@@ -4,11 +4,22 @@
         "DefaultFont": "Default ({font})",
         "FontSize": "Font size",
         "TextColour": "Text colour",
-        "Align": {
+        "FillColour": "Background colour",
+        "Configure": "All drawing options",
+        "bold": "Bold",
+        "italic": "Italic",
+        "fit": "Fit the box to the text",
+        "fill": "Background",
+        "border": "Border",
+        "align": {
             "left": "Align left",
             "center": "Align centre",
             "right": "Align right"
         },
-        "Configure": "All drawing options"
+        "valign": {
+            "top": "Align top",
+            "middle": "Align middle",
+            "bottom": "Align bottom"
+        }
     }
 }

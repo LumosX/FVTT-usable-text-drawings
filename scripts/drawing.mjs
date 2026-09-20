@@ -1,34 +1,43 @@
-import { ANCHOR_X, getAlign, getTextInset } from "./text-style.mjs";
+import { getAnchor, getLayout, getTextArea, getTextInset, isManaged } from "./text-style.mjs";
 import TextEditor, { onceClickEnds } from "./text-editor.mjs";
 
 export default function UsableTextDrawingMixin(Drawing) {
     return class UsableTextDrawing extends Drawing {
         _getTextStyle() {
             const style = super._getTextStyle();
-            const align = getAlign(this.document);
 
-            if (align)
-                Object.assign(style, { align, wordWrap: false });
+            if (!isManaged(this.document))
+                return style;
 
-            return style;
+            const { align, fit, bold, italic } = getLayout(this.document);
+
+            return Object.assign(style, {
+                align,
+                wordWrap: !fit,
+                wordWrapWidth: getTextArea(this.document).width,
+                fontWeight: bold ? "bold" : "normal",
+                fontStyle: italic ? "italic" : "normal"
+            });
         }
 
         _refreshPosition() {
             super._refreshPosition();
-            const align = getAlign(this.document);
 
-            if (!this.text || !align)
+            if (!this.text || !isManaged(this.document))
                 return;
 
+            const anchor = getAnchor(this.document);
             const inset = getTextInset(this.document);
-            this.text.anchor.set(ANCHOR_X[align], 0);
-            this.text.position.set(inset + ANCHOR_X[align] * (this.document.shape.width - 2 * inset), inset);
+            const area = getTextArea(this.document);
+            this.text.anchor.set(anchor.x, anchor.y);
+            this.text.position.set(inset + anchor.x * area.width, inset + anchor.y * area.height);
         }
 
+        // The layout of managed text depends on its flags, and through its inset on the border, the fill and the font size.
         _onUpdate(changed, options, userId) {
             super._onUpdate(changed, options, userId);
 
-            if (getAlign(changed))
+            if (isManaged(this.document))
                 this.renderFlags.set({ refreshText: true, refreshPosition: true });
         }
 

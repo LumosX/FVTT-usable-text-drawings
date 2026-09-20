@@ -1,17 +1,27 @@
 #hud > .usable-text-drawings-editor {
-    all: unset;
     position: absolute;
-    box-sizing: border-box;
-    overflow: hidden;
     pointer-events: all;
     cursor: text;
-    paint-order: stroke fill;
     outline: 2px dashed rgb(255 255 255 / 60%);
     outline-offset: 4px;
 }
 
+#hud > .usable-text-drawings-editor > textarea {
+    all: unset;
+    position: absolute;
+    box-sizing: border-box;
+    overflow: hidden;
+    paint-order: stroke fill;
+}
+
+#usable-text-drawings-toolbar.editing {
+    opacity: 1;
+}
+
 #usable-text-drawings-toolbar .controls {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
     margin-top: 16px;
 }
@@ -28,7 +38,7 @@
 }
 
 #usable-text-drawings-toolbar select {
-    width: 180px;
+    width: 160px;
 }
 
 #usable-text-drawings-toolbar input[type="number"] {

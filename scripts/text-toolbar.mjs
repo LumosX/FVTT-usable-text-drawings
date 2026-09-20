@@ -6,6 +6,11 @@ const { FontConfig } = foundry.applications.settings.menus;
 
 const FONT_SIZE_RANGE = { min: 8, max: 256 };
 
+const CHOICE_ICONS = {
+    align: { left: "fa-align-left", center: "fa-align-center", right: "fa-align-right" },
+    valign: { top: "fa-objects-align-top", middle: "fa-objects-align-center-vertical", bottom: "fa-objects-align-bottom" }
+};
+
 // The formatting bar docked at the top of the screen. It styles the text being edited and, with it, the next new text.
 export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV2) {
     static DEFAULT_OPTIONS = {
@@ -14,7 +19,7 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         classes: ["faded-ui"],
         window: { frame: false, positioned: false },
         form: { handler: TextToolbar.#onChangeField, submitOnChange: true },
-        actions: { align: TextToolbar.#onAlign, configure: TextToolbar.#onConfigure }
+        actions: { choose: TextToolbar.#onChoose, toggle: TextToolbar.#onToggle, configure: TextToolbar.#onConfigure }
     };
 
     static PARTS = {
@@ -37,19 +42,23 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
 
     async _prepareContext() {
         const style = TextEditor.active?.style ?? getDefaultStyle();
+        const getChoices = key => Object.entries(CHOICE_ICONS[key]).map(([value, icon]) => ({ key, value, icon, isPressed: style[key] === value }));
 
         return {
             style,
             fontSizeRange: FONT_SIZE_RANGE,
             fontFamilies: FontConfig.getAvailableFontChoices(),
             defaultFontLabel: game.i18n.format("USABLE_TEXT_DRAWINGS.DefaultFont", { font: CONFIG.defaultFontFamily }),
-            alignments: ["left", "center", "right"].map(align => ({ align, isPressed: align === style.align })),
-            isEditing: !!TextEditor.active
+            alignments: getChoices("align"),
+            verticalAlignments: getChoices("valign"),
+            isEditing: !!TextEditor.active,
+            canFit: TextEditor.active?.canFit ?? false
         };
     }
 
     _onRender(context, options) {
         super._onRender(context, options);
+        this.element.classList.toggle("editing", context.isEditing);
 
         // A button which took the focus would take it, and the selection, away from the text being edited.
         for (const button of this.element.querySelectorAll("button"))
@@ -57,14 +66,18 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
     }
 
     static #onChangeField(event, form, formData) {
-        const { fontFamily, fontSize, textColor } = formData.object;
+        const { fontSize, ...fields } = formData.object;
         const { min, max } = FONT_SIZE_RANGE;
 
-        this.#restyle({ fontFamily, textColor, fontSize: Math.clamp(Math.round(fontSize) || min, min, max) });
+        this.#restyle({ ...fields, fontSize: Math.clamp(Math.round(fontSize) || min, min, max) });
     }
 
-    static #onAlign(event, target) {
-        this.#restyle({ align: target.dataset.align });
+    static #onChoose(event, target) {
+        this.#restyle({ [target.dataset.key]: target.dataset.value });
+    }
+
+    static #onToggle(event, target) {
+        this.#restyle({ [target.dataset.key]: target.getAttribute("aria-pressed") !== "true" });
     }
 
     static #onConfigure() {
@@ -72,7 +85,10 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
     }
 
     #restyle(style) {
-        setDefaultStyle({ ...getDefaultStyle(), ...style });
+        // Whether a box is fitted to its text is down to how that text was placed, a click or a drag, not to the text before it.
+        const { fit, ...stickyStyle } = style;
+
+        setDefaultStyle({ ...getDefaultStyle(), ...stickyStyle });
         TextEditor.active?.restyle(style);
         this.render();
     }

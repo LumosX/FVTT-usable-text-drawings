@@ -1,6 +1,8 @@
-import { MODULE_ID, applyStyle, fitToText, getAlign, getStyle, getTextInset, measureText } from "./text-style.mjs";
+import { MODULE_ID, applyStyle, fitToText, getAnchor, getLayout, getStyle, getTextArea, getTextInset, hasVisibleBox, measureText } from "./text-style.mjs";
 
 export const EDITING_CHANGED_HOOK = `${MODULE_ID}.editingChanged`;
+
+const SAVED_FIELDS = ["text", "fontFamily", "fontSize", "textColor", "fillType", "fillColor", "strokeWidth", "x", "y", "shape", "flags"];
 
 // A text box opened while the mouse button is still going down loses its focus to the default action of that click.
 export function onceClickEnds(callback) {
@@ -8,14 +10,15 @@ export function onceClickEnds(callback) {
 }
 
 // A text box laid over the canvas, for composing a new text drawing or editing the text of an existing one.
+// It works on a draft of the drawing's data, which only becomes a drawing, or an update to one, once the text is finished.
 export default class TextEditor {
     static active = null;
     static #saving = Promise.resolve();
 
     #draft;
     #drawing;
-    #wasManaged;
     #scene = canvas.scene;
+    #box = document.createElement("div");
     #textarea = document.createElement("textarea");
 
     static async create(drawingData) {
@@ -41,24 +44,26 @@ export default class TextEditor {
     constructor(drawingData, drawing = null) {
         this.#draft = drawingData;
         this.#drawing = drawing;
-        this.#wasManaged = getAlign(drawingData) !== undefined;
 
         const textarea = this.#textarea;
-        textarea.className = "usable-text-drawings-editor";
         textarea.spellcheck = false;
-        textarea.value = drawingData.text;
-        textarea.addEventListener("input", () => this.#onInput());
+        textarea.addEventListener("input", () => this.#update(draft => draft.text = textarea.value));
         textarea.addEventListener("keydown", event => this.#onKeyDown(event));
 
+        const box = this.#box;
+        box.className = "usable-text-drawings-editor";
+        box.append(textarea);
+        box.addEventListener("pointerdown", event => this.#onPointerDownBox(event));
+
         // The HUD container follows the pan and zoom of the canvas, so the text box is laid out in canvas coordinates.
-        document.getElementById("hud").append(textarea);
-        window.addEventListener("pointerdown", this.#onPointerDown, { capture: true });
+        document.getElementById("hud").append(box);
+        window.addEventListener("pointerdown", this.#onPointerDownAnywhere, { capture: true });
 
         // As in core, editing the text of a drawing does not leave it selected.
         drawing?.release();
         this.#showDrawing(false);
 
-        this.#layout();
+        this.#update();
         textarea.focus();
         TextEditor.active = this;
         Hooks.callAll(EDITING_CHANGED_HOOK);
@@ -68,15 +73,24 @@ export default class TextEditor {
         return getStyle(this.#draft);
     }
 
-    restyle(style) {
-        // Aligning a drawing laid out by core makes it a managed one, whose text never wraps, so its wrapped lines become real ones.
-        if (style.align && !getAlign(this.#draft)) {
-            this.#draft.text = measureText(this.#draft).lines.join("\n");
-            this.#textarea.value = this.#draft.text;
-        }
+    // The points of any other shape would have to be scaled along with its box.
+    get canFit() {
+        return this.#isRectangle;
+    }
 
-        applyStyle(this.#draft, style);
-        this.#layout();
+    get #isRectangle() {
+        return this.#draft.shape.type === foundry.data.ShapeData.TYPES.RECTANGLE;
+    }
+
+    restyle(style) {
+        this.#update(draft => {
+            // Fitted text never wraps, so text which did keeps its lines by having them broken for real.
+            if (style.fit && !getLayout(draft).fit)
+                draft.text = measureText(draft).lines.join("\n");
+
+            applyStyle(draft, style);
+        });
+
         this.#textarea.focus();
     }
 
@@ -85,7 +99,7 @@ export default class TextEditor {
             return TextEditor.#saving;
 
         TextEditor.active = null;
-        window.removeEventListener("pointerdown", this.#onPointerDown, { capture: true });
+        window.removeEventListener("pointerdown", this.#onPointerDownAnywhere, { capture: true });
         Hooks.callAll(EDITING_CHANGED_HOOK);
 
         // Foundry reports a failed save itself. Left rejected, it would also keep every later text box from opening.
@@ -99,13 +113,14 @@ export default class TextEditor {
     }
 
     async #save() {
-        const draft = { ...this.#draft, text: this.#draft.text.trim() };
+        this.#update(draft => draft.text = draft.text.trim());
+        const draft = this.#draft;
 
         if (!this.#drawing) {
             if (!draft.text)
                 return;
 
-            const [created] = await this.#scene.createEmbeddedDocuments("Drawing", [{ ...draft, ...fitToText(draft) }]);
+            const [created] = await this.#scene.createEmbeddedDocuments("Drawing", [draft]);
             return created;
         }
 
@@ -116,68 +131,98 @@ export default class TextEditor {
             return;
         }
 
-        const { text, fontFamily, fontSize, textColor, flags } = draft;
-        await document.update({ text, fontFamily, fontSize, textColor, flags });
+        await document.update(Object.fromEntries(SAVED_FIELDS.map(field => [field, draft[field]])));
         return document;
     }
 
     #close() {
-        this.#textarea.remove();
+        this.#box.remove();
         this.#showDrawing(true);
     }
 
-    // The text box stands in for the text of the drawing and for its frame, which would not keep up with the text as it changes.
-    // The box of the drawing itself is rendered elsewhere on the canvas and stays as it is.
+    // The editor stands in for the frame of the drawing, which would not keep up with its changes, and for what it draws of the drawing itself.
+    // That is the text, along with the box if it is a rectangle. Any other shape is left to the canvas.
     #showDrawing(isShown) {
         const drawing = this.#drawing;
 
         if (!drawing || drawing.destroyed)
             return;
 
+        const replaced = this.#isRectangle ? drawing.shape : drawing.text;
         drawing.renderable = isShown;
 
-        if (drawing.text)
-            drawing.text.visible = isShown;
+        if (replaced)
+            replaced.renderable = isShown;
     }
 
-    #layout() {
+    // Every change to the draft goes through here, so that a fitted box stays fitted.
+    #update(change = () => {}) {
         const draft = this.#draft;
-        const align = getAlign(draft);
+        const previousInset = getTextInset(draft);
+        change(draft);
+
+        if (getLayout(draft).fit)
+            foundry.utils.mergeObject(draft, fitToText(draft, previousInset));
+
+        this.#render();
+    }
+
+    #render() {
+        const draft = this.#draft;
+        const { align, fit } = getLayout(draft);
         const metrics = measureText(draft);
         const { style } = metrics;
-        const box = align ? fitToText(draft, this.#wasManaged) : this.#getCoreLayoutBox(metrics);
-        const inset = align ? getTextInset(draft) : 0;
+        const inset = getTextInset(draft);
+        const area = getTextArea(draft);
+        const textHeight = Math.ceil(metrics.height);
+        const textarea = this.#textarea;
 
-        Object.assign(this.#textarea.style, {
-            left: `${box.x + inset}px`,
-            top: `${box.y + inset}px`,
-            width: `${box.shape.width - 2 * inset}px`,
-            height: `${box.shape.height - 2 * inset}px`,
+        if (textarea.value !== draft.text)
+            textarea.value = draft.text;
+
+        Object.assign(this.#box.style, {
+            left: `${draft.x}px`,
+            top: `${draft.y}px`,
+            width: `${draft.shape.width}px`,
+            height: `${draft.shape.height}px`,
             rotate: `${draft.rotation}deg`,
+            ...this.#getBoxAppearance()
+        });
+
+        Object.assign(textarea.style, {
+            left: `${inset}px`,
+            top: `${inset + getAnchor(draft).y * (area.height - textHeight)}px`,
+            width: `${area.width}px`,
+            height: `${textHeight}px`,
             fontFamily: `"${style.fontFamily}"`,
             fontSize: `${style.fontSize}px`,
+            fontWeight: style.fontWeight,
+            fontStyle: style.fontStyle,
             lineHeight: `${metrics.lineHeight}px`,
             paddingInline: `${style.strokeThickness / 2}px`,
             color: draft.textColor,
             opacity: draft.textAlpha,
-            textAlign: align ?? "center",
-            whiteSpace: align ? "pre" : "pre-wrap",
+            textAlign: align,
+            whiteSpace: fit ? "pre" : "pre-wrap",
             webkitTextStroke: `${style.strokeThickness}px ${foundry.utils.Color.from(style.stroke).css}`,
             textShadow: `0 0 ${style.dropShadowBlur}px ${style.dropShadowColor}`
         });
     }
 
-    // Core wraps the text to the width of its box and centres it within.
-    #getCoreLayoutBox(metrics) {
-        const { x, y, shape } = this.#draft;
-        const height = Math.ceil(metrics.height);
+    // Like core, this draws the border inside the box.
+    #getBoxAppearance() {
+        const { fillType, fillColor, fillAlpha, strokeWidth, strokeColor, strokeAlpha } = this.#draft;
+        const { Color } = foundry.utils;
 
-        return { x, y: y + (shape.height - height) / 2, shape: { width: shape.width, height } };
-    }
+        if (!this.#isRectangle)
+            return { background: "none", boxShadow: "none" };
 
-    #onInput() {
-        this.#draft.text = this.#textarea.value;
-        this.#layout();
+        const isFilled = fillType === CONST.DRAWING_FILL_TYPES.SOLID;
+
+        return {
+            background: isFilled ? Color.from(fillColor).toRGBA(fillAlpha) : "none",
+            boxShadow: `inset 0 0 0 ${strokeWidth}px ${Color.from(strokeColor).toRGBA(strokeAlpha)}`
+        };
     }
 
     #onKeyDown(event) {
@@ -193,15 +238,17 @@ export default class TextEditor {
         this.commit();
     }
 
-    #onPointerDown = event => {
+    // A click in the box beside the text goes to the text, as it would in any text box.
+    #onPointerDownBox(event) {
+        if (event.target !== this.#box)
+            return;
+
+        event.preventDefault();
+        this.#textarea.focus();
+    }
+
+    #onPointerDownAnywhere = event => {
         if (event.button === 0 && event.target === canvas.app.view)
             this.commit();
     };
-}
-
-function hasVisibleBox({ fillType, fillAlpha, strokeWidth, strokeAlpha }) {
-    const hasFill = fillType !== CONST.DRAWING_FILL_TYPES.NONE && fillAlpha > 0;
-    const hasLine = strokeWidth > 0 && strokeAlpha > 0;
-
-    return hasFill || hasLine;
 }
