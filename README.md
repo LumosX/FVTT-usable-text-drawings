@@ -12,7 +12,7 @@ FoundryVTT module that makes text drawings work like text does everywhere else: 
 - **No border, no fill**, unless you switch them on. Text has to be typed before anything is created, so an invisible box is not a problem.
 - **Left and top aligned**, unless you pick otherwise, horizontally and vertically. For a text placed with a click, the alignment is also what stays on the clicked spot as the text grows: its left edge, its centre or its right edge. This holds for rotated text too.
 - **A formatting bar** at the top of the screen while the text tool or a text box is in use: font, size, colour, bold, italic, both alignments, whether the box is fitted to the text, a background with its colour, a border, and a button for the full drawing configuration at the end. What you pick applies to the text being edited and sticks for the next one.
-- **Editing.** Click a text with the text tool, or double-click it with the select tool, to edit it in place. The configuration dialog is still there, behind the button on the formatting bar and on double-clicks of drawings without text.
+- **Editing.** Click a text with the text tool, or double-click it with the select tool, to edit it in place. The configuration dialog is still there, behind the button on the formatting bar and on double-clicks of drawings without text. Its text field takes several lines too, instead of joining them into one.
 
 ## Existing drawings
 
