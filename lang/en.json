@@ -4,11 +4,16 @@
         "DefaultFont": "Default ({font})",
         "FontSize": "Font size",
         "TextColour": "Text colour",
-        "FillColour": "Background colour",
+        "Colour": "Colour",
+        "Tint": "Tint",
+        "Opacity": "Opacity",
+        "Texture": "Texture",
+        "Width": "Width",
         "Configure": "All drawing options",
         "bold": "Bold",
         "italic": "Italic",
         "fit": "Fit the box to the text",
+        "wrap": "Wrap the text in its box",
         "fill": "Background",
         "border": "Border",
         "align": {
@@ -20,6 +25,11 @@
             "top": "Align top",
             "middle": "Align middle",
             "bottom": "Align bottom"
+        },
+        "fillTypes": {
+            "none": "None",
+            "solid": "Solid",
+            "pattern": "Pattern"
         }
     }
 }

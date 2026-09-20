@@ -24,11 +24,57 @@
 
     {{> choices options=alignments}}
     {{> choices options=verticalAlignments}}
-    {{> toggle key="fit" icon="fa-text-width" isPressed=style.fit isDisabled=(not canFit)}}
 
-    {{> toggle key="fill" icon="fa-fill-drip" isPressed=style.fill}}
-    <input class="ui-control" type="color" name="fillColor" value="{{style.fillColor}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.FillColour"}}">
-    {{> toggle key="border" icon="fa-border-outer" isPressed=style.border}}
+    <div class="split-button">
+        {{> toggle key="fit" icon="fa-text-width" isPressed=style.fit isDisabled=(not canFit)}}
+        {{> toggle key="wrap" icon="fa-arrow-turn-down-left" isPressed=style.wrap isDisabled=style.fit}}
+    </div>
+
+    <div class="popover-anchor">
+        <button type="button" class="ui-control icon fa-solid fa-fill-drip" data-action="popover" data-popover="fill" aria-pressed="{{hasFill}}" aria-expanded="{{isFillOpen}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.fill"}}"></button>
+        <div class="popover" {{#unless isFillOpen}}hidden{{/unless}}>
+            <div class="radios">
+                {{#each fillTypes}}
+                <label>
+                    <input type="radio" name="fillType" value="{{value}}" data-dtype="Number" {{#if isSelected}}checked{{/if}}>
+                    {{localize label}}
+                </label>
+                {{/each}}
+            </div>
+            <label class="row">
+                <span>{{#if isPattern}}{{localize "USABLE_TEXT_DRAWINGS.Tint"}}{{else}}{{localize "USABLE_TEXT_DRAWINGS.Colour"}}{{/if}}</span>
+                {{formInput fields.fillColor value=style.fillColor name="fillColor"}}
+            </label>
+            <label class="row">
+                <span>{{localize "USABLE_TEXT_DRAWINGS.Opacity"}}</span>
+                {{formInput fields.fillAlpha value=style.fillAlpha name="fillAlpha" step=0.05}}
+            </label>
+            {{#if isPattern}}
+            <label class="row">
+                <span>{{localize "USABLE_TEXT_DRAWINGS.Texture"}}</span>
+                {{formInput fields.texture value=style.texture name="texture"}}
+            </label>
+            {{/if}}
+        </div>
+    </div>
+
+    <div class="popover-anchor">
+        <button type="button" class="ui-control icon fa-solid fa-border-outer" data-action="popover" data-popover="border" aria-pressed="{{hasBorder}}" aria-expanded="{{isBorderOpen}}" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.border"}}"></button>
+        <div class="popover" {{#unless isBorderOpen}}hidden{{/unless}}>
+            <label class="row">
+                <span>{{localize "USABLE_TEXT_DRAWINGS.Width"}}</span>
+                {{formInput fields.strokeWidth value=style.strokeWidth name="strokeWidth" min=0 max=64 step=1}}
+            </label>
+            <label class="row">
+                <span>{{localize "USABLE_TEXT_DRAWINGS.Colour"}}</span>
+                {{formInput fields.strokeColor value=style.strokeColor name="strokeColor"}}
+            </label>
+            <label class="row">
+                <span>{{localize "USABLE_TEXT_DRAWINGS.Opacity"}}</span>
+                {{formInput fields.strokeAlpha value=style.strokeAlpha name="strokeAlpha" step=0.05}}
+            </label>
+        </div>
+    </div>
 
     <button type="button" class="ui-control icon fa-solid fa-gear" data-action="configure" data-tooltip aria-label="{{localize "USABLE_TEXT_DRAWINGS.Configure"}}" {{disabled (not isEditing)}}></button>
 </div>

@@ -6,6 +6,12 @@
     outline-offset: 4px;
 }
 
+#hud > .usable-text-drawings-editor > .fill {
+    position: absolute;
+    inset: 0;
+    background-repeat: repeat;
+}
+
 #hud > .usable-text-drawings-editor > textarea {
     all: unset;
     position: absolute;
@@ -43,6 +49,58 @@
 
 #usable-text-drawings-toolbar select {
     width: 160px;
+}
+
+#usable-text-drawings-toolbar .popover-anchor {
+    position: relative;
+    display: flex;
+}
+
+/* The control variables are only defined on .ui-control elements, so the panel takes core's palette directly. */
+#usable-text-drawings-toolbar .popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    translate: -50%;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: max-content;
+    min-width: 260px;
+    padding: 10px;
+    background: var(--color-cool-5, rgb(11 10 19));
+    border: 1px solid var(--color-cool-4, rgb(48 40 49));
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 50%);
+    color: var(--color-text-primary);
+    pointer-events: all;
+}
+
+.theme-light #usable-text-drawings-toolbar .popover {
+    background: rgb(255 255 255 / 92%);
+    border-color: rgb(255 255 255);
+}
+
+#usable-text-drawings-toolbar .popover .radios {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#usable-text-drawings-toolbar .popover :is(.radios label, .row) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+
+#usable-text-drawings-toolbar .popover .row > span {
+    flex: 0 0 72px;
+}
+
+#usable-text-drawings-toolbar .popover .row > :last-child {
+    flex: 1;
 }
 
 #usable-text-drawings-toolbar input[type="number"] {

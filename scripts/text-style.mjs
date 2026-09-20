@@ -1,11 +1,22 @@
 export const MODULE_ID = "usable-text-drawings";
 
 const STYLE_SETTING = "textStyle";
-const DEFAULT_STYLE = { fontFamily: "", fontSize: 48, textColor: "#ffffff", bold: false, italic: false, align: "left", valign: "top", fill: false, fillColor: "#000000", fillAlpha: 0.5, border: false };
 
 // The layout of the text of a drawing is kept in the flags of this module. A drawing without them is laid out by core, which amounts to this.
-const CORE_LAYOUT = { align: "center", valign: "middle", fit: false, bold: false, italic: false };
+const CORE_LAYOUT = { align: "center", valign: "middle", fit: false, wrap: true, bold: false, italic: false };
 const LAYOUT_KEYS = Object.keys(CORE_LAYOUT);
+
+// The fields of the drawing itself which the formatting bar sets.
+export const CORE_STYLE_KEYS = ["fontFamily", "fontSize", "textColor", "fillType", "fillColor", "fillAlpha", "texture", "strokeWidth", "strokeColor", "strokeAlpha"];
+
+export const FONT_SIZE_RANGE = { min: 8, max: 256 };
+
+// Everything the bar remembers for the next text. Whether its box is fitted is not among it: that is down to how the text is placed.
+const DEFAULT_STYLE = {
+    fontFamily: "", fontSize: 48, textColor: "#ffffff", bold: false, italic: false, align: "left", valign: "top", wrap: true,
+    fillType: CONST.DRAWING_FILL_TYPES.NONE, fillColor: "#000000", fillAlpha: 0.5, texture: null,
+    strokeWidth: 0, strokeColor: "#ffffff", strokeAlpha: 1
+};
 
 // How far along its free space the text sits. This is also the point of the text which stays put as a fitted box resizes around it.
 const ANCHORS = { left: 0, center: 0.5, right: 1, top: 0, middle: 0.5, bottom: 1 };
@@ -21,7 +32,32 @@ export function getDefaultStyle() {
 }
 
 export function setDefaultStyle(style) {
-    return game.settings.set(MODULE_ID, STYLE_SETTING, style);
+    const stored = {};
+
+    for (const key of Object.keys(DEFAULT_STYLE))
+        if (key in style) stored[key] = style[key];
+
+    return game.settings.set(MODULE_ID, STYLE_SETTING, stored);
+}
+
+// A form hands back strings for what the schema wants as numbers, and an empty path for no texture.
+export function cleanStyle(style) {
+    const cleaned = { ...style };
+    const clampNumber = (key, min, max) => {
+        if (key in cleaned) cleaned[key] = Math.clamp(Number(cleaned[key]) || 0, min, max);
+    };
+
+    clampNumber("fontSize", FONT_SIZE_RANGE.min, FONT_SIZE_RANGE.max);
+    clampNumber("fillType", 0, Math.max(...Object.values(CONST.DRAWING_FILL_TYPES)));
+    clampNumber("fillAlpha", 0, 1);
+    clampNumber("strokeAlpha", 0, 1);
+    clampNumber("strokeWidth", 0, Number.MAX_SAFE_INTEGER);
+
+    if ("fontSize" in cleaned) cleaned.fontSize = Math.round(cleaned.fontSize);
+    if ("strokeWidth" in cleaned) cleaned.strokeWidth = Math.round(cleaned.strokeWidth);
+    if ("texture" in cleaned) cleaned.texture = cleaned.texture || null;
+
+    return cleaned;
 }
 
 export function isManaged(drawingData) {
@@ -32,29 +68,30 @@ export function getLayout(drawingData) {
     return { ...CORE_LAYOUT, ...drawingData.flags?.[MODULE_ID] };
 }
 
+// A fitted box is exactly as wide as its text, so wrapping within one could never do anything.
+export function wrapsText(drawingData) {
+    const { wrap, fit } = getLayout(drawingData);
+    return wrap && !fit;
+}
+
 export function getAnchor(drawingData) {
     const { align, valign } = getLayout(drawingData);
     return { x: ANCHORS[align], y: ANCHORS[valign] };
 }
 
 export function getStyle(drawingData) {
-    const { fontFamily, fontSize, textColor, fillColor, fillType, strokeWidth } = drawingData;
-    const fill = fillType !== CONST.DRAWING_FILL_TYPES.NONE;
+    const style = getLayout(drawingData);
 
-    return { fontFamily, fontSize, textColor, fillColor, fill, border: strokeWidth > 0, ...getLayout(drawingData) };
+    for (const key of CORE_STYLE_KEYS) style[key] = drawingData[key];
+
+    return style;
 }
 
-export function applyStyle(drawingData, { fill, border, ...style }) {
+export function applyStyle(drawingData, style) {
     for (const [key, value] of Object.entries(style)) {
-        const path = LAYOUT_KEYS.includes(key) ? `flags.${MODULE_ID}.${key}` : key;
-        foundry.utils.setProperty(drawingData, path, value);
+        if (LAYOUT_KEYS.includes(key)) foundry.utils.setProperty(drawingData, `flags.${MODULE_ID}.${key}`, value);
+        else if (CORE_STYLE_KEYS.includes(key)) drawingData[key] = value;
     }
-
-    if (fill !== undefined)
-        drawingData.fillType = fill ? CONST.DRAWING_FILL_TYPES.SOLID : CONST.DRAWING_FILL_TYPES.NONE;
-
-    if (border !== undefined)
-        drawingData.strokeWidth = border ? drawingData.strokeWidth || CONFIG.Drawing.documentClass.schema.fields.strokeWidth.initial : 0;
 
     return drawingData;
 }

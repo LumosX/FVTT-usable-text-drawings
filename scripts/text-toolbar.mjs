@@ -1,10 +1,8 @@
-import { MODULE_ID, getDefaultStyle, setDefaultStyle } from "./text-style.mjs";
+import { FONT_SIZE_RANGE, MODULE_ID, cleanStyle, getDefaultStyle, setDefaultStyle } from "./text-style.mjs";
 import TextEditor from "./text-editor.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const { FontConfig } = foundry.applications.settings.menus;
-
-const FONT_SIZE_RANGE = { min: 8, max: 256 };
 
 const CHOICE_ICONS = {
     align: { left: "fa-align-left", center: "fa-align-center", right: "fa-align-right" },
@@ -19,12 +17,19 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         classes: ["faded-ui"],
         window: { frame: false, positioned: false },
         form: { handler: TextToolbar.#onChangeField, submitOnChange: true },
-        actions: { choose: TextToolbar.#onChoose, toggle: TextToolbar.#onToggle, configure: TextToolbar.#onConfigure }
+        actions: {
+            choose: TextToolbar.#onChoose,
+            toggle: TextToolbar.#onToggle,
+            popover: TextToolbar.#onPopover,
+            configure: TextToolbar.#onConfigure
+        }
     };
 
     static PARTS = {
         controls: { template: `modules/${MODULE_ID}/templates/text-toolbar.hbs` }
     };
+
+    #openPopover = null;
 
     // Shown for as long as the text tool or the text editor is in use.
     sync() {
@@ -42,18 +47,37 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
 
     async _prepareContext() {
         const style = TextEditor.active?.style ?? getDefaultStyle();
+        const types = CONST.DRAWING_FILL_TYPES;
         const getChoices = key => Object.entries(CHOICE_ICONS[key]).map(([value, icon]) => ({ key, value, icon, isPressed: style[key] === value }));
 
         return {
             style,
+            fields: CONFIG.Drawing.documentClass.schema.fields,
             fontSizeRange: FONT_SIZE_RANGE,
             fontFamilies: FontConfig.getAvailableFontChoices(),
             defaultFontLabel: game.i18n.format("USABLE_TEXT_DRAWINGS.DefaultFont", { font: CONFIG.defaultFontFamily }),
             alignments: getChoices("align"),
             verticalAlignments: getChoices("valign"),
+            fillTypes: Object.entries(types).map(([name, value]) => ({ value, label: `USABLE_TEXT_DRAWINGS.fillTypes.${name.toLowerCase()}`, isSelected: style.fillType === value })),
+            isPattern: style.fillType === types.PATTERN,
+            hasFill: style.fillType !== types.NONE,
+            hasBorder: style.strokeWidth > 0,
+            isFillOpen: this.#openPopover === "fill",
+            isBorderOpen: this.#openPopover === "border",
             isEditing: !!TextEditor.active,
             canFit: TextEditor.active?.canFit ?? false
         };
+    }
+
+    async _onFirstRender(context, options) {
+        await super._onFirstRender(context, options);
+        window.addEventListener("pointerdown", this.#onPointerDownAnywhere, { capture: true });
+    }
+
+    _onClose(options) {
+        super._onClose(options);
+        window.removeEventListener("pointerdown", this.#onPointerDownAnywhere, { capture: true });
+        this.#openPopover = null;
     }
 
     _onRender(context, options) {
@@ -66,10 +90,7 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
     }
 
     static #onChangeField(event, form, formData) {
-        const { fontSize, ...fields } = formData.object;
-        const { min, max } = FONT_SIZE_RANGE;
-
-        this.#restyle({ ...fields, fontSize: Math.clamp(Math.round(fontSize) || min, min, max) });
+        this.#restyle(cleanStyle(formData.object));
     }
 
     static #onChoose(event, target) {
@@ -80,8 +101,18 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         this.#restyle({ [target.dataset.key]: target.getAttribute("aria-pressed") !== "true" });
     }
 
+    static #onPopover(event, target) {
+        game.tooltip.deactivate();
+        this.#setPopover(this.#openPopover === target.dataset.popover ? null : target.dataset.popover);
+    }
+
     static #onConfigure() {
         TextEditor.active?.configure();
+    }
+
+    #setPopover(name) {
+        this.#openPopover = name;
+        this.render();
     }
 
     #restyle(style) {
@@ -92,4 +123,8 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         TextEditor.active?.restyle(style);
         this.render();
     }
+
+    #onPointerDownAnywhere = event => {
+        if (this.#openPopover && !event.target.closest(`#${this.id} .popover-anchor`)) this.#setPopover(null);
+    };
 }

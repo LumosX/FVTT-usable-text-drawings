@@ -1,4 +1,4 @@
-import { getAnchor, getLayout, getTextArea, getTextInset, isManaged } from "./text-style.mjs";
+import { getAnchor, getLayout, getTextArea, getTextInset, isManaged, wrapsText } from "./text-style.mjs";
 import TextEditor, { onceClickEnds } from "./text-editor.mjs";
 
 export default function UsableTextDrawingMixin(Drawing) {
@@ -9,11 +9,11 @@ export default function UsableTextDrawingMixin(Drawing) {
             if (!isManaged(this.document))
                 return style;
 
-            const { align, fit, bold, italic } = getLayout(this.document);
+            const { align, bold, italic } = getLayout(this.document);
 
             return Object.assign(style, {
                 align,
-                wordWrap: !fit,
+                wordWrap: wrapsText(this.document),
                 wordWrapWidth: getTextArea(this.document).width,
                 fontWeight: bold ? "bold" : "normal",
                 fontStyle: italic ? "italic" : "normal"

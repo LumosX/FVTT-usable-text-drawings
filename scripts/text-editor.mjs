@@ -1,8 +1,8 @@
-import { MODULE_ID, applyStyle, fitToText, getAnchor, getLayout, getStyle, getTextArea, getTextInset, hasVisibleBox, measureText } from "./text-style.mjs";
+import { CORE_STYLE_KEYS, MODULE_ID, applyStyle, fitToText, getAnchor, getLayout, getStyle, getTextArea, getTextInset, hasVisibleBox, measureText, wrapsText } from "./text-style.mjs";
 
 export const EDITING_CHANGED_HOOK = `${MODULE_ID}.editingChanged`;
 
-const SAVED_FIELDS = ["text", "fontFamily", "fontSize", "textColor", "fillType", "fillColor", "strokeWidth", "x", "y", "shape", "flags"];
+const SAVED_FIELDS = ["text", "x", "y", "shape", "flags", ...CORE_STYLE_KEYS];
 
 // A text box opened while the mouse button is still going down loses its focus to the default action of that click.
 export function onceClickEnds(callback) {
@@ -19,6 +19,7 @@ export default class TextEditor {
     #drawing;
     #scene = canvas.scene;
     #box = document.createElement("div");
+    #fill = document.createElement("div");
     #textarea = document.createElement("textarea");
 
     static async create(drawingData) {
@@ -50,9 +51,11 @@ export default class TextEditor {
         textarea.addEventListener("input", () => this.#update(draft => draft.text = textarea.value));
         textarea.addEventListener("keydown", event => this.#onKeyDown(event));
 
+        this.#fill.className = "fill";
+
         const box = this.#box;
         box.className = "usable-text-drawings-editor";
-        box.append(textarea);
+        box.append(this.#fill, textarea);
         box.addEventListener("pointerdown", event => this.#onPointerDownBox(event));
 
         // The HUD container follows the pan and zoom of the canvas, so the text box is laid out in canvas coordinates.
@@ -84,8 +87,8 @@ export default class TextEditor {
 
     restyle(style) {
         this.#update(draft => {
-            // Fitted text never wraps, so text which did keeps its lines by having them broken for real.
-            if (style.fit && !getLayout(draft).fit)
+            // A fitted box has no width to wrap to, so text which was wrapping keeps its lines by having them broken for real.
+            if (style.fit && !getLayout(draft).fit && wrapsText(draft))
                 draft.text = measureText(draft).lines.join("\n");
 
             applyStyle(draft, style);
@@ -169,13 +172,18 @@ export default class TextEditor {
 
     #render() {
         const draft = this.#draft;
-        const { align, fit } = getLayout(draft);
+        const { align } = getLayout(draft);
         const metrics = measureText(draft);
         const { style } = metrics;
+        const wraps = wrapsText(draft);
+        const anchor = getAnchor(draft);
         const inset = getTextInset(draft);
         const area = getTextArea(draft);
-        const textHeight = Math.ceil(metrics.height);
+        const text = { width: Math.ceil(metrics.width), height: Math.ceil(metrics.height) };
         const textarea = this.#textarea;
+
+        // Room for the stroke of the outermost glyphs, which the text itself is not offset by.
+        const overhang = style.strokeThickness;
 
         if (textarea.value !== draft.text)
             textarea.value = draft.text;
@@ -186,43 +194,51 @@ export default class TextEditor {
             width: `${draft.shape.width}px`,
             height: `${draft.shape.height}px`,
             rotate: `${draft.rotation}deg`,
-            ...this.#getBoxAppearance()
+            boxShadow: this.#isRectangle ? `inset 0 0 0 ${draft.strokeWidth}px ${foundry.utils.Color.from(draft.strokeColor).toRGBA(draft.strokeAlpha)}` : "none"
         });
 
         Object.assign(textarea.style, {
-            left: `${inset}px`,
-            top: `${inset + getAnchor(draft).y * (area.height - textHeight)}px`,
-            width: `${area.width}px`,
-            height: `${textHeight}px`,
+            // Text which does not wrap is laid out as wide as it is, so that it spills out of the box just as it does on the canvas.
+            left: `${inset + (wraps ? 0 : anchor.x * (area.width - text.width)) - overhang / 2}px`,
+            top: `${inset + anchor.y * (area.height - text.height)}px`,
+            width: `${(wraps ? area.width : text.width) + overhang}px`,
+            height: `${text.height}px`,
             fontFamily: `"${style.fontFamily}"`,
             fontSize: `${style.fontSize}px`,
             fontWeight: style.fontWeight,
             fontStyle: style.fontStyle,
             lineHeight: `${metrics.lineHeight}px`,
-            paddingInline: `${style.strokeThickness / 2}px`,
+            paddingInline: `${overhang / 2}px`,
             color: draft.textColor,
             opacity: draft.textAlpha,
             textAlign: align,
-            whiteSpace: fit ? "pre" : "pre-wrap",
+            whiteSpace: wraps ? "pre-wrap" : "pre",
             webkitTextStroke: `${style.strokeThickness}px ${foundry.utils.Color.from(style.stroke).css}`,
             textShadow: `0 0 ${style.dropShadowBlur}px ${style.dropShadowColor}`
         });
+
+        this.#renderFill();
     }
 
-    // Like core, this draws the border inside the box.
-    #getBoxAppearance() {
-        const { fillType, fillColor, fillAlpha, strokeWidth, strokeColor, strokeAlpha } = this.#draft;
-        const { Color } = foundry.utils;
+    // The fill sits in a layer of its own so that its opacity is its own, and a pattern can be tinted the way the canvas tints it.
+    #renderFill() {
+        const { fillType, fillColor, fillAlpha, texture } = this.#draft;
+        const types = CONST.DRAWING_FILL_TYPES;
+        const fill = this.#fill;
 
-        if (!this.#isRectangle)
-            return { background: "none", boxShadow: "none" };
+        fill.hidden = !this.#isRectangle || fillType === types.NONE;
 
-        const isFilled = fillType === CONST.DRAWING_FILL_TYPES.SOLID;
+        if (fill.hidden)
+            return;
 
-        return {
-            background: isFilled ? Color.from(fillColor).toRGBA(fillAlpha) : "none",
-            boxShadow: `inset 0 0 0 ${strokeWidth}px ${Color.from(strokeColor).toRGBA(strokeAlpha)}`
-        };
+        // A pattern is shown untinted, transparent parts and all. The canvas tints it by the fill colour once the text is committed.
+        const isPattern = fillType === types.PATTERN && !!texture;
+
+        Object.assign(fill.style, {
+            opacity: fillAlpha,
+            backgroundColor: isPattern ? "transparent" : foundry.utils.Color.from(fillColor).css,
+            backgroundImage: isPattern ? `url("${foundry.utils.getRoute(texture)}")` : "none"
+        });
     }
 
     #onKeyDown(event) {
