@@ -54,11 +54,9 @@ export default class TextEditor {
         document.getElementById("hud").append(textarea);
         window.addEventListener("pointerdown", this.#onPointerDown, { capture: true });
 
-        if (drawing?.text)
-            drawing.text.visible = false;
-
-        // The control frame would keep showing the old size of the box while the text box outgrows it.
+        // As in core, editing the text of a drawing does not leave it selected.
         drawing?.release();
+        this.#showDrawing(false);
 
         this.#layout();
         textarea.focus();
@@ -125,9 +123,21 @@ export default class TextEditor {
 
     #close() {
         this.#textarea.remove();
+        this.#showDrawing(true);
+    }
 
-        if (this.#drawing?.text && !this.#drawing.destroyed)
-            this.#drawing.text.visible = true;
+    // The text box stands in for the text of the drawing and for its frame, which would not keep up with the text as it changes.
+    // The box of the drawing itself is rendered elsewhere on the canvas and stays as it is.
+    #showDrawing(isShown) {
+        const drawing = this.#drawing;
+
+        if (!drawing || drawing.destroyed)
+            return;
+
+        drawing.renderable = isShown;
+
+        if (drawing.text)
+            drawing.text.visible = isShown;
     }
 
     #layout() {
