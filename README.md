@@ -4,6 +4,14 @@ FoundryVTT module that makes text drawings work like text does everywhere else: 
 
 **Tested and works** on Foundry **v13 and v14**. System-agnostic.
 
+## Installation
+
+1. Paste this manifest URL into Foundry's **Install Module** dialog:
+
+    > `https://github.com/LumosX/FVTT-usable-text-drawings/releases/latest/download/module.json`
+
+2. Enable the module in your world's Module Management.
+
 ## What it does
 
 - **Click to type.** With the text tool, a click on the scene opens a text box right there, with a caret, selection, copy and paste, undo and IME input. The box of such a text hugs it, and keeps hugging it as the text, font or size changes, so there is nothing to resize and nothing for the text to wrap in.
@@ -19,3 +27,7 @@ FoundryVTT module that makes text drawings work like text does everywhere else: 
 Text drawings made without the module keep looking exactly as they did, wrapped and centred in their box, and are edited in place in that layout. Any of them can be restyled from the formatting bar like a text made with the module, which is when it starts being laid out by it.
 
 What the module stores is a handful of flags under `flags.usable-text-drawings`: the two alignments, whether the box is fitted, whether its text wraps, bold and italic. Everything else is a regular text drawing. Without the module, core centres the text in its box, which leaves a fitted text where it was and moves one in a larger box to the middle of it.
+
+## License
+
+[MIT](LICENSE)
