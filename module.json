@@ -2,7 +2,7 @@
     "id": "usable-text-drawings",
     "title": "Usable Text Drawings",
     "description": "Click anywhere with the text tool and type. Multiline text, a formatting bar, left and top aligned, and no bordered box.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "authors": [
         {
             "name": "Lumos @ Zero Vector",
@@ -24,6 +24,6 @@
     },
     "url": "https://github.com/LumosX/FVTT-usable-text-drawings",
     "manifest": "https://github.com/LumosX/FVTT-usable-text-drawings/releases/latest/download/module.json",
-    "download": "https://github.com/LumosX/FVTT-usable-text-drawings/releases/download/v0.1.0/module.zip",
+    "download": "https://github.com/LumosX/FVTT-usable-text-drawings/releases/download/v0.2.0/module.zip",
     "license": "LICENSE"
 }

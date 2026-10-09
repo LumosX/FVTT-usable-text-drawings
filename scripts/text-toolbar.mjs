@@ -4,6 +4,9 @@ import TextEditor from "./text-editor.mjs";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const { FontConfig } = foundry.applications.settings.menus;
 
+const SCRUB_THRESHOLD_PX = 3;
+const SCRUB_PX_PER_STEP = 3;
+
 const CHOICE_ICONS = {
     align: { left: "fa-align-left", center: "fa-align-center", right: "fa-align-right" },
     valign: { top: "fa-objects-align-top", middle: "fa-objects-align-center-vertical", bottom: "fa-objects-align-bottom" }
@@ -87,6 +90,8 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         // A button which took the focus would take it, and the selection, away from the text being edited.
         for (const button of this.element.querySelectorAll("button"))
             button.addEventListener("mousedown", event => event.preventDefault());
+
+        this.element.querySelector('input[name="fontSize"]').addEventListener("pointerdown", event => this.#onPointerDownFontSize(event));
     }
 
     static #onChangeField(event, form, formData) {
@@ -122,6 +127,45 @@ export default class TextToolbar extends HandlebarsApplicationMixin(ApplicationV
         setDefaultStyle({ ...getDefaultStyle(), ...stickyStyle });
         TextEditor.active?.restyle(style);
         this.render();
+    }
+
+    // Dragging across the font size changes it, and previews it live, the way a number field does in an image editor. A click without a drag types into it.
+    // The field is not focused while dragging, so the text being edited keeps the focus and its selection.
+    #onPointerDownFontSize(event) {
+        if (event.button !== 0 || event.target === document.activeElement)
+            return;
+
+        event.preventDefault();
+        const input = event.target;
+        const startX = event.clientX;
+        const startSize = Number(input.value);
+        let isDragging = false;
+
+        const onMove = moveEvent => {
+            const dx = moveEvent.clientX - startX;
+            isDragging ||= Math.abs(dx) >= SCRUB_THRESHOLD_PX;
+
+            if (!isDragging)
+                return;
+
+            input.value = cleanStyle({ fontSize: startSize + Math.round(dx / SCRUB_PX_PER_STEP) }).fontSize;
+            TextEditor.active?.restyle({ fontSize: Number(input.value) });
+        };
+
+        const onUp = () => {
+            input.removeEventListener("pointermove", onMove);
+
+            if (!isDragging) {
+                input.focus();
+                input.select();
+            } else if (Number(input.value) !== startSize) {
+                this.#restyle({ fontSize: Number(input.value) });
+            }
+        };
+
+        input.setPointerCapture(event.pointerId);
+        input.addEventListener("pointermove", onMove);
+        input.addEventListener("pointerup", onUp, { once: true });
     }
 
     #onPointerDownAnywhere = event => {

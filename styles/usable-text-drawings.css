@@ -107,6 +107,10 @@
     width: 64px;
 }
 
+#usable-text-drawings-toolbar input[name="fontSize"]:not(:focus) {
+    cursor: ew-resize;
+}
+
 #usable-text-drawings-toolbar input[type="color"] {
     width: var(--control-size);
     padding: 4px;
